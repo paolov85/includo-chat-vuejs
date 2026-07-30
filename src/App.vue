@@ -1,36 +1,64 @@
 <script setup>
-// Dati di esempio copiati dall'API, per costruire il layout prima di collegarla
-const coaches = [
-  { id: 1, name: 'Marco Ferretti', craft: 'Ceramics', online: true },
-  { id: 2, name: 'Sofia Ricci', craft: 'Textile & Weaving', online: true },
-  { id: 3, name: 'Luca Bianchi', craft: 'Woodworking', online: false },
-]
+import { ref, onMounted } from 'vue'
 
-const messages = [
-  {
-    id: 1,
-    from: 'coach',
-    text: "Ciao! Sono Marco, il tuo coach di ceramica. Sono qui per guidarti nel mondo dell'argilla. Come posso aiutarti?",
-  },
-  {
-    id: 2,
-    from: 'user',
-    text: 'Ciao Marco! Sono molto emozionata di iniziare. Vorrei imparare le basi della tornitura al tornio.',
-  },
-  {
-    id: 3,
-    from: 'coach',
-    text: "Ottima scelta! La tornitura è la tecnica più soddisfacente. Ti consiglio di partire con l'argilla da 1kg.",
-  },
-]
+const BASE_URL = 'https://raw.githubusercontent.com/Anita-Liberatore/includo-chat-api/master'
 
-const selectedCoach = coaches[0]
+// L'API restituisce il mestiere in inglese, ma l'applicazione è in italiano
+const CRAFT_NAMES = {
+  Ceramics: 'Ceramica',
+  'Textile & Weaving': 'Tessitura',
+  Woodworking: 'Falegnameria',
+  Jewelry: 'Oreficeria',
+  'Leather Goods': 'Pelletteria',
+  Glassblowing: 'Soffiatura del vetro',
+  Blacksmithing: 'Lavorazione del ferro',
+  Bookbinding: 'Legatoria',
+  Shoemaking: 'Calzoleria',
+  'Candle Making': 'Candele artigianali',
+}
+
+const coaches = ref([])
+const conversations = ref([])
+const isLoading = ref(true)
+const errorMessage = ref('')
+
+// I due file arrivano insieme: servono entrambi per mostrare una conversazione
+async function loadData() {
+  try {
+    const responses = await Promise.all([
+      fetch(`${BASE_URL}/coaches.json`),
+      fetch(`${BASE_URL}/conversations.json`),
+    ])
+
+    if (responses[0].ok === false || responses[1].ok === false) {
+      throw new Error('Risposta non valida')
+    }
+
+    coaches.value = await responses[0].json()
+    conversations.value = await responses[1].json()
+  } catch (error) {
+    errorMessage.value = 'Non è stato possibile caricare i coach. Riprova più tardi.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(loadData)
 
 // Iniziali del nome e del cognome, usate al posto della foto del coach
 function initials(name) {
   const parts = name.split(' ')
 
   return parts[0][0] + parts[1][0]
+}
+
+// Se un mestiere non è tradotto viene mostrato com'è, senza lasciare il posto vuoto
+function craftLabel(craft) {
+  if (CRAFT_NAMES[craft] === undefined) {
+    return craft
+  }
+
+  return CRAFT_NAMES[craft]
 }
 </script>
 
@@ -43,18 +71,19 @@ function initials(name) {
 
     <div class="layout">
       <aside class="contacts">
-        <ul class="contact-list">
-          <li
-            v-for="coach in coaches"
-            :key="coach.id"
-            class="contact"
-            :class="{ 'contact-selected': coach.id === selectedCoach.id }"
-          >
+        <p v-if="isLoading" class="feedback">Caricamento dei coach…</p>
+
+        <p v-else-if="errorMessage !== ''" class="feedback feedback-error">
+          {{ errorMessage }}
+        </p>
+
+        <ul v-else class="contact-list">
+          <li v-for="coach in coaches" :key="coach.id" class="contact">
             <span class="avatar">{{ initials(coach.name) }}</span>
 
             <div class="contact-text">
               <p class="contact-name">{{ coach.name }}</p>
-              <p class="contact-craft">{{ coach.craft }}</p>
+              <p class="contact-craft">{{ craftLabel(coach.craft) }}</p>
             </div>
 
             <span v-if="coach.online" class="online-dot" title="Online"></span>
@@ -63,26 +92,7 @@ function initials(name) {
       </aside>
 
       <section class="chat">
-        <header class="chat-header">
-          <span class="avatar">{{ initials(selectedCoach.name) }}</span>
-          <p class="chat-name">{{ selectedCoach.name }}</p>
-        </header>
-
-        <div class="messages">
-          <div
-            v-for="message in messages"
-            :key="message.id"
-            class="bubble"
-            :class="message.from === 'user' ? 'bubble-user' : 'bubble-coach'"
-          >
-            {{ message.text }}
-          </div>
-        </div>
-
-        <form class="composer" @submit.prevent>
-          <input class="composer-input" type="text" placeholder="Scrivi un messaggio" />
-          <button class="composer-button" type="submit">Invia</button>
-        </form>
+        <p class="empty">Seleziona un coach per leggere la conversazione</p>
       </section>
     </div>
   </div>
@@ -143,8 +153,15 @@ h1 {
   background-color: #f5f5f4;
 }
 
-.contact-selected {
-  background-color: #ecfdf5;
+.feedback {
+  margin: 0;
+  padding: 16px 12px;
+  font-size: 15px;
+  color: #78716c;
+}
+
+.feedback-error {
+  color: #b91c1c;
 }
 
 .avatar {
@@ -188,74 +205,13 @@ h1 {
   flex: 1;
   display: flex;
   flex-direction: column;
-}
-
-.chat-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e7e5e4;
-}
-
-.chat-name {
-  margin: 0;
-  font-weight: bold;
-}
-
-.messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
+  justify-content: center;
   background-color: #fafaf9;
 }
 
-.bubble {
-  max-width: 70%;
-  margin-bottom: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  line-height: 1.4;
-}
-
-.bubble-coach {
-  background-color: #ffffff;
-  border: 1px solid #e7e5e4;
-}
-
-.bubble-user {
-  margin-left: auto;
-  background-color: #d1fae5;
-}
-
-.composer {
-  display: flex;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid #e7e5e4;
-}
-
-.composer-input {
-  flex: 1;
-  padding: 10px 12px;
-  font-size: 15px;
-  font-family: inherit;
-  border: 1px solid #d6d3d1;
-  border-radius: 20px;
-}
-
-.composer-button {
-  padding: 10px 20px;
-  font-size: 15px;
-  font-weight: bold;
-  color: #ffffff;
-  background-color: #0d9488;
-  border: none;
-  border-radius: 20px;
-  cursor: pointer;
-}
-
-.composer-button:hover {
-  background-color: #0f766e;
+.empty {
+  margin: 0;
+  text-align: center;
+  color: #78716c;
 }
 </style>
