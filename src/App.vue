@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 const BASE_URL = 'https://raw.githubusercontent.com/Anita-Liberatore/includo-chat-api/master'
 
@@ -21,6 +21,9 @@ const coaches = ref([])
 const conversations = ref([])
 const isLoading = ref(true)
 const errorMessage = ref('')
+
+// La selezione è tenuta con l'id: il coach e i suoi messaggi si ricavano da qui
+const selectedCoachId = ref(null)
 
 // I due file arrivano insieme: servono entrambi per mostrare una conversazione
 async function loadData() {
@@ -44,6 +47,36 @@ async function loadData() {
 }
 
 onMounted(loadData)
+
+const selectedCoach = computed(() => {
+  for (let i = 0; i < coaches.value.length; i++) {
+    if (coaches.value[i].id === selectedCoachId.value) {
+      return coaches.value[i]
+    }
+  }
+
+  return null
+})
+
+// Ogni conversazione dell'API è legata al coach dal campo coachId
+const selectedMessages = computed(() => {
+  for (let i = 0; i < conversations.value.length; i++) {
+    if (conversations.value[i].coachId === selectedCoachId.value) {
+      return conversations.value[i].messages
+    }
+  }
+
+  return []
+})
+
+// Dall'orario completo dell'API tengo solo ore e minuti, nel formato 09:15
+function formatTime(timestamp) {
+  const date = new Date(timestamp)
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+
+  return `${hours}:${minutes}`
+}
 
 // Iniziali del nome e del cognome, usate al posto della foto del coach
 function initials(name) {
@@ -78,7 +111,13 @@ function craftLabel(craft) {
         </p>
 
         <ul v-else class="contact-list">
-          <li v-for="coach in coaches" :key="coach.id" class="contact">
+          <li
+            v-for="coach in coaches"
+            :key="coach.id"
+            class="contact"
+            :class="{ 'contact-selected': coach.id === selectedCoachId }"
+            @click="selectedCoachId = coach.id"
+          >
             <span class="avatar">{{ initials(coach.name) }}</span>
 
             <div class="contact-text">
@@ -92,7 +131,32 @@ function craftLabel(craft) {
       </aside>
 
       <section class="chat">
-        <p class="empty">Seleziona un coach per leggere la conversazione</p>
+        <p v-if="selectedCoach === null" class="empty">
+          Seleziona un coach per leggere la conversazione
+        </p>
+
+        <template v-else>
+          <header class="chat-header">
+            <span class="avatar">{{ initials(selectedCoach.name) }}</span>
+
+            <div>
+              <p class="chat-name">{{ selectedCoach.name }}</p>
+              <p class="chat-craft">{{ craftLabel(selectedCoach.craft) }}</p>
+            </div>
+          </header>
+
+          <div class="messages">
+            <div
+              v-for="message in selectedMessages"
+              :key="message.id"
+              class="bubble"
+              :class="message.from === 'user' ? 'bubble-user' : 'bubble-coach'"
+            >
+              <p class="bubble-text">{{ message.text }}</p>
+              <p class="bubble-time">{{ formatTime(message.timestamp) }}</p>
+            </div>
+          </div>
+        </template>
       </section>
     </div>
   </div>
@@ -153,6 +217,10 @@ h1 {
   background-color: #f5f5f4;
 }
 
+.contact-selected {
+  background-color: #ecfdf5;
+}
+
 .feedback {
   margin: 0;
   padding: 16px 12px;
@@ -205,13 +273,67 @@ h1 {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   background-color: #fafaf9;
 }
 
 .empty {
-  margin: 0;
+  margin: auto;
   text-align: center;
+  color: #78716c;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e7e5e4;
+  background-color: #ffffff;
+}
+
+.chat-name {
+  margin: 0;
+  font-weight: bold;
+}
+
+.chat-craft {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: #78716c;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.bubble {
+  max-width: 70%;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.bubble-coach {
+  background-color: #ffffff;
+  border: 1px solid #e7e5e4;
+}
+
+.bubble-user {
+  margin-left: auto;
+  background-color: #d1fae5;
+}
+
+.bubble-text {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.bubble-time {
+  margin: 4px 0 0;
+  font-size: 12px;
+  text-align: right;
   color: #78716c;
 }
 </style>
