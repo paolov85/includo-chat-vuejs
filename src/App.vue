@@ -1,7 +1,11 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 
 const BASE_URL = 'https://raw.githubusercontent.com/Anita-Liberatore/includo-chat-api/master'
+
+// Risposta che il coach manda da solo cinque secondi dopo il messaggio dell'allievo
+const AUTO_REPLY = 'Ciao! Grazie per avermi scritto.'
+const AUTO_REPLY_DELAY = 5000
 
 // L'API restituisce il mestiere in inglese, ma l'applicazione è in italiano
 const CRAFT_NAMES = {
@@ -24,6 +28,8 @@ const errorMessage = ref('')
 
 // La selezione è tenuta con l'id: il coach e i suoi messaggi si ricavano da qui
 const selectedCoachId = ref(null)
+const newMessage = ref('')
+const messagesBox = ref(null)
 
 // I due file arrivano insieme: servono entrambi per mostrare una conversazione
 async function loadData() {
@@ -59,15 +65,75 @@ const selectedCoach = computed(() => {
 })
 
 // Ogni conversazione dell'API è legata al coach dal campo coachId
-const selectedMessages = computed(() => {
+function findConversation(coachId) {
   for (let i = 0; i < conversations.value.length; i++) {
-    if (conversations.value[i].coachId === selectedCoachId.value) {
-      return conversations.value[i].messages
+    if (conversations.value[i].coachId === coachId) {
+      return conversations.value[i]
     }
   }
 
-  return []
+  return null
+}
+
+const selectedMessages = computed(() => {
+  const conversation = findConversation(selectedCoachId.value)
+
+  if (conversation === null) {
+    return []
+  }
+
+  return conversation.messages
 })
+
+function selectCoach(coachId) {
+  selectedCoachId.value = coachId
+  scrollToBottom()
+}
+
+// I messaggi più recenti stanno in fondo: dopo ogni cambiamento riporto lì la vista
+function scrollToBottom() {
+  nextTick(() => {
+    if (messagesBox.value !== null) {
+      messagesBox.value.scrollTop = messagesBox.value.scrollHeight
+    }
+  })
+}
+
+function addMessage(coachId, from, text) {
+  const conversation = findConversation(coachId)
+
+  if (conversation === null) {
+    return
+  }
+
+  conversation.messages.push({
+    id: Date.now(),
+    from: from,
+    text: text,
+    timestamp: new Date().toISOString(),
+  })
+
+  scrollToBottom()
+}
+
+function sendMessage() {
+  const text = newMessage.value.trim()
+
+  if (text === '' || selectedCoach.value === null) {
+    return
+  }
+
+  // L'id va tenuto da parte: se cambio coach durante l'attesa, la risposta
+  // deve comunque finire nella conversazione a cui ho scritto
+  const coachId = selectedCoachId.value
+
+  addMessage(coachId, 'user', text)
+  newMessage.value = ''
+
+  setTimeout(() => {
+    addMessage(coachId, 'coach', AUTO_REPLY)
+  }, AUTO_REPLY_DELAY)
+}
 
 // Dall'orario completo dell'API tengo solo ore e minuti, nel formato 09:15
 function formatTime(timestamp) {
@@ -116,7 +182,7 @@ function craftLabel(craft) {
             :key="coach.id"
             class="contact"
             :class="{ 'contact-selected': coach.id === selectedCoachId }"
-            @click="selectedCoachId = coach.id"
+            @click="selectCoach(coach.id)"
           >
             <span class="avatar">{{ initials(coach.name) }}</span>
 
@@ -145,7 +211,7 @@ function craftLabel(craft) {
             </div>
           </header>
 
-          <div class="messages">
+          <div ref="messagesBox" class="messages">
             <div
               v-for="message in selectedMessages"
               :key="message.id"
@@ -156,6 +222,16 @@ function craftLabel(craft) {
               <p class="bubble-time">{{ formatTime(message.timestamp) }}</p>
             </div>
           </div>
+
+          <form class="composer" @submit.prevent="sendMessage">
+            <input
+              v-model="newMessage"
+              class="composer-input"
+              type="text"
+              placeholder="Scrivi un messaggio"
+            />
+            <button class="composer-button" type="submit">Invia</button>
+          </form>
         </template>
       </section>
     </div>
@@ -335,5 +411,37 @@ h1 {
   font-size: 12px;
   text-align: right;
   color: #78716c;
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #e7e5e4;
+  background-color: #ffffff;
+}
+
+.composer-input {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-family: inherit;
+  border: 1px solid #d6d3d1;
+  border-radius: 20px;
+}
+
+.composer-button {
+  padding: 10px 20px;
+  font-size: 15px;
+  font-weight: bold;
+  color: #ffffff;
+  background-color: #0d9488;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.composer-button:hover {
+  background-color: #0f766e;
 }
 </style>
