@@ -190,11 +190,39 @@ h1 {
   display: flex;
   flex-direction: column;
   background-color: #fafaf9;
+  /* Senza questo l'elenco dei messaggi non si accorcia e sfonda il riquadro */
+  min-height: 0;
 }
 
 .empty {
   margin: auto;
+  padding: 0 20px;
   text-align: center;
   color: #78716c;
+}
+
+/* Su schermi stretti le due colonne non ci stanno affiancate:
+   i contatti passano sopra la conversazione */
+@media (max-width: 700px) {
+  .app {
+    padding: 16px 12px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  .layout {
+    flex-direction: column;
+    height: 560px;
+  }
+
+  .contacts {
+    width: auto;
+    height: 200px;
+    flex-shrink: 0;
+    border-right: none;
+    border-bottom: 1px solid #e7e5e4;
+  }
 }
 </style>
