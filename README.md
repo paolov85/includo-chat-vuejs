@@ -2,6 +2,12 @@
 
 Progetto del modulo Vue.js (corso "Master Web Developer Full Stack", start2impact): la chat di IncluDO, un centro di formazione che insegna mestieri artigianali a migranti e persone in percorso di reinserimento. Ogni allievo è seguito da un artigiano coach, e questa applicazione è lo strumento con cui i due si scrivono.
 
+## Prova subito il progetto
+
+L'applicazione è online e non richiede alcuna installazione: **[splendid-mandazi-19d79a.netlify.app](https://splendid-mandazi-19d79a.netlify.app)**
+
+Le sezioni seguenti riguardano lo sviluppo in locale, utile solo per leggere o modificare il codice sorgente.
+
 ## Come funziona
 
 All'avvio l'applicazione scarica da un'API pubblica l'elenco dei coach e le conversazioni già avviate. Selezionando un coach dalla colonna di sinistra si apre la sua conversazione: i messaggi del coach stanno a sinistra, i propri a destra, ognuno con l'orario.
